@@ -1,0 +1,123 @@
+#!/bin/sh
+
+# Creates a set of directories under ./build with configure commands
+# that can be used to build PHP in various configurations.
+#
+# Assumes $HOME/php-src is a git clone of master, and that
+# $HOME/php-5.3 & $HOME/php-5.4 contain the PHP 5.3 and 5.4 branches.
+
+[ ! -d $HOME/php-src -o ! -d $HOME/php-5.3 -o ! -d $HOME/php-5.4 ] && { echo "Can't find a source directory" >& 2; exit 1; }
+[ -z "$ORACLE_HOME" ] && { echo "ORACLE_HOME is not set" >& 2; exit 3; }
+
+APACHE=$HOME/apache22
+
+# Installation dir for PHP binaries
+INSTDIR=$HOME/p
+
+which odbc_config > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+    ODBC_OPT="--with-unixODBC=/usr --with-pdo-odbc=unixODBC,/usr"
+else
+    ODBC_OPT=""
+fi
+# Let's skip this all the time; too buggy
+ODBC_OPT=""
+
+DBA_DB4_REL=$HOME/bdb-4.0.14  # get two expected diffs dba015, dba_db4_018
+DBA_DB4_REL=$HOME/bdb-4.1.25  # lots of failed tests
+DBA_DB4_REL=$HOME/bdb-4.6.21  # get two expected diffs dba015, dba_db4_018 where expected errors are suppressed by the patch for 51086
+DBA_DB4_REL=$HOME/bdb-4.7.25  # get two expected diffs dba015, dba_db4_018 where expected errors are suppressed by the patch for 51086
+DBA_DB4_REL=$HOME/bdb-4.8.26  # get two expected diffs dba015, dba_db4_018.  Get two seg faults dba_db4_003, dba_db4_007
+DBA_DB4_REL=$HOME/bdb-4.8.30  # get two expected diffs dba015, dba_db4_018.  Get two seg faults dba_db4_003, dba_db4_007
+DBA_DB4_REL=$HOME/bdb-5.0.21  # get two seg faults dba_db4_003, dba_db4_007. Get two expected diffs dba015, dba_db4_018
+DBA_DB4_REL=$HOME/bdb-5.1.19  # Get two seg faults dba_db4_003, dba_db4_007. Get two expected diffs dba015, dba_db4_018
+DBA_DB4_REL=$HOME/bdb-5.2.28  # Get two seg faults dba_db4_003, dba_db4_007. Get two expected diffs dba015, dba_db4_018
+if [ -d ${DBA_DB4_REL} ]; then
+    DB4_OPT="--with-db4=$DBA_DB4_REL"
+else
+    DB4_OPT=""
+fi
+
+DEFAULT_OPTIONS="\
+   --with-mysql=mysqlnd \
+   --with-mysqli=mysqlnd \
+   --with-pdo-mysql=mysqlnd \
+   --enable-soap \
+   --with-apxs2=$APACHE/bin/apxs \
+   --with-gd \
+   --with-curl \
+   --with-jpeg-dir \
+   --with-png-dir \
+   --enable-gd-native-ttf \
+   --with-freetype-dir=/usr/lib/libfreetype.so.6 \
+   --with-zlib \
+   --enable-calendar \
+   --with-readline \
+   --enable-mbstring \
+   --with-openssl \
+   --enable-pcntl \
+   --enable-pdo \
+   --enable-dba ${DB4_OPT} \
+   ${ODBC_OPT}"
+
+mkdir build
+echo "#!/bin/sh" > build/doall.sh
+chmod a+x build/doall.sh
+for b in 5.3 5.4 master
+do
+    if [ $b = 'master' ]; then
+	SD=$HOME/php-src
+    else
+	SD=$HOME/php-$b
+    fi
+    for d in debug nodebug
+    do
+	for t in tsrm notsrm
+	do
+	    for o in oh ic112 ic111 ic102 ic101
+	    do
+	    # Oracle client specific settings
+		if [ "$o" = "oh" ]; then
+		    OCI8_OPT="--with-oci8=${ORACLE_HOME}"
+		    PDO_OCI_OPT="--with-pdo-oci=${ORACLE_HOME}"
+		elif [ "$o" = "ic112" ]; then
+		    OCI8_OPT="--with-oci8=instantclient,${HOME}/instantclient_11_2"
+		    PDO_OCI_OPT="--with-pdo-oci=instantclient,${HOME}/instantclient_11_2,11.2.0.3"
+		elif [ "$o" = "ic111" ]; then
+		    OCI8_OPT="--with-oci8=instantclient,${HOME}/instantclient_11_1"
+		    PDO_OCI_OPT="--with-pdo-oci=instantclient,${HOME}/instantclient_11_1,11.1.0.7"
+		elif [ "$o" = "ic102" ]; then
+		    OCI8_OPT="--with-oci8=instantclient,${HOME}/instantclient_10_2"
+		    PDO_OCI_OPT="--with-pdo-oci=instantclient,${HOME}/instantclient_10_2,10.2.0.5"
+		elif [ "$o" = "ic101" ]; then
+		    OCI8_OPT="--with-oci8=instantclient,${HOME}/instantclient10_1"
+		    PDO_OCI_OPT="--with-pdo-oci=instantclient,${HOME}/instantclient10_1,10.1.0.5"
+		else
+		    echo "Wrong type of build. Got ${o}"
+		    exit 4;
+		fi
+
+		BD=build/$b-$d-$t-$o
+		echo "Creating build directory $BD"
+		mkdir -p $BD
+		configline=" --prefix=$INSTDIR/php-$b-$d-$t-$o $DEFAULT_OPTIONS $OCI8_OPT $PDO_OCI_OPT"
+		if [ "$d" = "debug" ]; then configline="$configline --enable-debug"; fi
+		if [ "$t" = "tsrm" ]; then configline="$configline --enable-maintainer-zts"; fi
+		echo "$SD/configure $configline \"\$@\"" > $BD/config.nice
+		chmod a+x $BD/config.nice
+
+		echo "#!/bin/sh
+./config.nice \"\$@\"
+make -j4
+make install
+cp $SD/php.ini-development $INSTDIR/php-$b-$d-$t-$o/lib/php.ini
+echo 'date.timezone = America/Los_Angeles
+oci8.connection_class = DRCPDEMO
+variables_order = \"EGPCS\"' >> $INSTDIR/php-$b-$d-$t-$o/lib/php.ini" > $BD/doit.sh
+		chmod a+x $BD/doit.sh
+		echo "cd `pwd`/$BD" >> build/doall.sh
+		echo ./doit.sh >> build/doall.sh
+	    done
+	done
+    done
+done
