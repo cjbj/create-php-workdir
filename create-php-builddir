@@ -65,6 +65,8 @@ DEFAULT_OPTIONS="\
    --enable-dba ${DB4_OPT} \
    ${ODBC_OPT}"
 
+rm -rf build.old
+mv build build.old
 mkdir build
 echo "#!/bin/sh" > build/doall.sh
 chmod a+x build/doall.sh
