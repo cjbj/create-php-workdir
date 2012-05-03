@@ -7,7 +7,12 @@
 # $HOME/php-5.3 & $HOME/php-5.4 contain the PHP 5.3 and 5.4 branches.
 
 [ ! -d $HOME/php-src -o ! -d $HOME/php-5.3 -o ! -d $HOME/php-5.4 ] && { echo "Can't find a source directory" >& 2; exit 1; }
-[ -z "$ORACLE_HOME" ] && { echo "ORACLE_HOME is not set" >& 2; exit 3; }
+if [ -z "$ORACLE_HOME" ]; then
+    echo "ORACLE_HOME is not set. Not creating ORACLE_HOME builds" >& 2
+    OHBUILDS=""
+else
+    OHBUILDS="oh"
+fi
 
 APACHE=$HOME/apache22
 
@@ -74,7 +79,7 @@ do
     do
 	for t in tsrm notsrm
 	do
-	    for o in oh ic112 ic111 ic102 ic101
+	    for o in $OHBUILDS ic112 ic111 ic102 ic101
 	    do
 	    # Oracle client specific settings
 		if [ "$o" = "oh" ]; then
