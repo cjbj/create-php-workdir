@@ -16,10 +16,10 @@ If this script is then invoked like
 
 it will then create a build directories such as:
 
-   build/5.3-debug-notsrm
-   build/5.3-debug-tsrm
-   build/5.3-nodebug-notsrm
-   build/5.3-nodebug-tsrm
+   build/5.4-debug-notsrm
+   build/5.4-debug-tsrm
+   build/5.4-nodebug-notsrm
+   build/5.4-nodebug-tsrm
 
 Sample steps to use this script:
     $ cd

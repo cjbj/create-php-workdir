@@ -4,9 +4,10 @@
 # that can be used to build PHP in various configurations.
 #
 # Assumes $HOME/php-src is a git clone of master, and that
-# $HOME/php-5.3 & $HOME/php-5.4 contain the PHP 5.3 and 5.4 branches.
+# $HOME/php-5.3 & $HOME/php-5.4 & $HOME/php5-5 contain the PHP 5.3,
+# PHP 5.4 and PHP 5.5 branches.
 
-[ ! -d $HOME/php-src -o ! -d $HOME/php-5.3 -o ! -d $HOME/php-5.4 ] && { echo "Can't find a source directory" >& 2; exit 1; }
+[ ! -d $HOME/php-src -o ! -d $HOME/php-5.3 -o ! -d $HOME/php-5.4 ! -d $HOME/php-5.5 ] && { echo "Can't find a source directory" >& 2; exit 1; }
 if [ -z "$ORACLE_HOME" ]; then
     echo "ORACLE_HOME is not set. Not creating ORACLE_HOME builds" >& 2
     OHBUILDS=""
@@ -70,7 +71,7 @@ mv build build.old
 mkdir build
 echo "#!/bin/sh" > build/doall.sh
 chmod a+x build/doall.sh
-for b in 5.3 5.4 master
+for b in 5.3 5.4 5.5 master
 do
     if [ $b = 'master' ]; then
 	SD=$HOME/php-src
