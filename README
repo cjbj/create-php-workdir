@@ -27,3 +27,5 @@ Sample steps to use this script:
     $ create-php-builddir
     $ cd build/5.4-debug-tsrm-ic112
     $ ./doit.sh
+
+Test\_variable
